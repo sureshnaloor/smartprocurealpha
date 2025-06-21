@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function RegisterForm() {
-  const { register } = useAuth();
+  const { signUp } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,16 +28,28 @@ export function RegisterForm() {
     setError(null);
     setLoading(true);
 
+    console.log("Registration form submitted with data:", formData);
+
     try {
-      await register(
-        formData.email,
-        formData.password,
-        formData.name,
-        formData.role,
-        formData.companyName
-      );
-      router.push("/login");
+      const result = await signUp({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        role: formData.role,
+        companyName: formData.companyName,
+      });
+
+      console.log("SignUp result:", result);
+
+      if (result.success) {
+        console.log("Registration successful, redirecting to dashboard");
+        router.push("/dashboard");
+      } else {
+        console.log("Registration failed:", result.error);
+        setError(result.error || "Registration failed");
+      }
     } catch (err) {
+      console.error("Registration error:", err);
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);

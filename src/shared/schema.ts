@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { boolean, integer, pgTable, primaryKey, serial, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, integer, pgTable, primaryKey, serial, text, timestamp, uuid, varchar, foreignKey } from 'drizzle-orm/pg-core';
 
 // Users table
 export const users = pgTable('users', {
@@ -34,7 +34,6 @@ export type InsertVendor = typeof vendors.$inferInsert;
 
 // Vendor Material Classes table (many-to-many)
 export const vendorMaterialClasses = pgTable('vendor_material_classes', {
-  id: serial('id').primaryKey(),
   vendorId: integer('vendor_id').references(() => vendors.id).notNull(),
   materialClass: varchar('material_class', { length: 255 }).notNull(),
 },
@@ -93,7 +92,6 @@ export type InsertBidItem = typeof bidItems.$inferInsert;
 
 // Vendor invitations table
 export const vendorInvitations = pgTable('vendor_invitations', {
-  id: serial('id').primaryKey(),
   bidId: integer('bid_id').references(() => bids.id).notNull(),
   vendorId: integer('vendor_id').references(() => vendors.id).notNull(),
   hasResponded: boolean('has_responded').default(false).notNull(),
@@ -110,7 +108,6 @@ export type InsertVendorInvitation = typeof vendorInvitations.$inferInsert;
 
 // Vendor submissions table
 export const vendorSubmissions = pgTable('vendor_submissions', {
-  id: serial('id').primaryKey(),
   uuid: uuid('uuid').defaultRandom().notNull().unique(),
   bidId: integer('bid_id').references(() => bids.id).notNull(),
   vendorId: integer('vendor_id').references(() => vendors.id).notNull(),
@@ -131,12 +128,21 @@ export type InsertVendorSubmission = typeof vendorSubmissions.$inferInsert;
 // Vendor item responses table
 export const vendorItemResponses = pgTable('vendor_item_responses', {
   id: serial('id').primaryKey(),
-  submissionId: integer('submission_id').references(() => vendorSubmissions.id).notNull(),
+  submissionBidId: integer('submission_bid_id').notNull(),
+  submissionVendorId: integer('submission_vendor_id').notNull(),
   itemId: integer('item_id').references(() => bidItems.id).notNull(),
   price: integer('price').notNull(),
   leadTime: integer('lead_time').notNull(),
   incoterm: varchar('incoterm', { length: 100 }).notNull(),
   paymentTerms: varchar('payment_terms', { length: 100 }).notNull(),
+},
+(table) => {
+  return {
+    fk: foreignKey({
+      columns: [table.submissionBidId, table.submissionVendorId],
+      foreignColumns: [vendorSubmissions.bidId, vendorSubmissions.vendorId],
+    }),
+  }
 });
 
 export type VendorItemResponse = typeof vendorItemResponses.$inferSelect;
@@ -209,8 +215,8 @@ export const vendorSubmissionsRelations = relations(vendorSubmissions, ({ one, m
 
 export const vendorItemResponsesRelations = relations(vendorItemResponses, ({ one }) => ({
   submission: one(vendorSubmissions, {
-    fields: [vendorItemResponses.submissionId],
-    references: [vendorSubmissions.id],
+    fields: [vendorItemResponses.submissionBidId, vendorItemResponses.submissionVendorId],
+    references: [vendorSubmissions.bidId, vendorSubmissions.vendorId],
   }),
   item: one(bidItems, {
     fields: [vendorItemResponses.itemId],

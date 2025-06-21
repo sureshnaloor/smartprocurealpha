@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 function LoginContent() {
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +24,14 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      const redirectTo = searchParams.get("redirectTo") || "/dashboard";
-      router.push(redirectTo);
+      const result = await signIn(email, password);
+      
+      if (result.success) {
+        const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+        router.push(redirectTo);
+      } else {
+        setError(result.error || "An error occurred during login");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during login");
     } finally {

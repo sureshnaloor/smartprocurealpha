@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { signUp } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -46,14 +46,19 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register(
-        formData.email,
-        formData.password,
-        formData.name,
-        formData.role,
-        formData.companyName
-      );
-      router.push("/dashboard");
+      const result = await signUp({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        role: formData.role,
+        companyName: formData.companyName,
+      });
+
+      if (result.success) {
+        router.push("/dashboard");
+      } else {
+        setError(result.error || "Registration failed. Please try again.");
+      }
     } catch (err) {
       setError("Registration failed. Please try again.");
     } finally {

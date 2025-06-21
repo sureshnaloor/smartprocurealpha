@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,21 +10,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Bell, User, Settings, LogOut, ChevronDown } from "lucide-react";
 
 export function DashboardHeader() {
-  const { user, logout, loading } = useAuth();
-  const [unreadNotifications] = useState(3); // Mock data
+  const { user, signOut, loading } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  if (!user) {
-    return null;
-  }
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      await logout();
+      await signOut();
+      window.location.href = "/login";
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
@@ -34,39 +29,38 @@ export function DashboardHeader() {
     }
   };
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <header className="bg-card shadow-sm">
-      <div className="h-16 px-4 md:px-6 flex items-center justify-between">
-        <div className="md:hidden flex-1 text-center">
-          <Link href="/dashboard" className="text-xl font-bold text-primary">
-            ProcureBid
-          </Link>
+    <header className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
         </div>
-        
-        <div className="flex items-center space-x-4 ml-auto">
-          <div className="relative">
-            <Button variant="ghost" size="sm" className="h-9 w-9 rounded-full">
-              <Bell className="h-5 w-5" />
-              {unreadNotifications > 0 && (
-                <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground flex items-center justify-center">
-                  {unreadNotifications}
-                </span>
-              )}
-              <span className="sr-only">Notifications</span>
-            </Button>
-          </div>
-          
+
+        <div className="flex items-center space-x-4">
+          {/* Notifications */}
+          <Button variant="ghost" size="sm" className="relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+          </Button>
+
+          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="px-2 h-9 flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary" />
+              <Button variant="ghost" className="flex items-center space-x-2">
+                <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                  <span className="text-sm font-medium text-white">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.role === "buyer" ? "Buyer" : "Vendor"}</p>
+                  <p className="text-xs text-gray-500">{user.role}</p>
                 </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -79,25 +73,18 @@ export function DashboardHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard" className="cursor-pointer">
-                  Dashboard
-                </Link>
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={handleLogout} 
-                className="cursor-pointer"
-                disabled={isLoggingOut || loading}
-              >
+              <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut || loading}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
+                {isLoggingOut ? "Logging out..." : "Log out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
