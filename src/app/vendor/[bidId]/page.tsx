@@ -6,7 +6,7 @@ import { BidResponseForm } from "@/components/vendor/bid-response-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getBidByIdForVendor, submitVendorResponse } from "@/lib/db";
+import { getBidByIdForVendor, submitVendorResponse } from "@/lib/actions";
 import { validateSubmission } from "@/lib/ai";
 import { Bid, VendorSubmission } from "@/types";
 import { CheckCircle2, Clock, AlertCircle } from "lucide-react";

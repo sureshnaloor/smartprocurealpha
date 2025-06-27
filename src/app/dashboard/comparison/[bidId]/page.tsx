@@ -7,7 +7,7 @@ import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getBidById } from "@/lib/db";
+import { getBidById } from "@/lib/actions";
 import { Bid, VendorResponse } from "@/types";
 import { ArrowLeft, Download, Mail, CheckCircle } from "lucide-react";
 import { ComparisonTable } from "@/components/bids/comparison-table";

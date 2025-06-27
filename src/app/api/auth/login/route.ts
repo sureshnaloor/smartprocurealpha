@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { login } from "@/lib/auth";
+import { authenticateUser, generateToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,16 +13,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await login(email, password);
+    const user = await authenticateUser(email, password);
 
-    if (!result.success) {
+    if (!user) {
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    return NextResponse.json({ user: result.user });
+    const token = generateToken(user);
+
+    return NextResponse.json({ 
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyName: user.companyName,
+      },
+      token 
+    });
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ItemTable } from "@/components/bids/item-table";
-import { getBidById, extendBidDueDate, sendReminders } from "@/lib/db";
+import { getBidById, extendBidDueDate, sendReminders } from "@/lib/actions";
 import { Bid } from "@/types";
 import { AlertCircle, CheckCircle2, Clock, Calendar, RefreshCw } from "lucide-react";
 
