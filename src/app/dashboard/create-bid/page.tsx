@@ -6,13 +6,12 @@ import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DashboardHeader } from "@/components/dashboard/header";
-import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { BidForm } from "@/components/bids/bid-form";
 import { VendorSelection } from "@/components/bids/vendor-selection";
 import { ItemTable } from "@/components/bids/item-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { createBid } from "@/lib/db";
+import { createBid } from "@/lib/actions";
 import { sendBidInvitations } from "@/lib/email";
 import { validateBidItems } from "@/lib/ai";
 import { BidItem, Vendor } from "@/types";
@@ -56,7 +55,7 @@ export default function CreateBidPage() {
 
       // Create the bid
       const newBid = await createBid({
-        buyerId: user.id,
+        buyerId: user.id.toString(),
         title: bidDetails.title,
         description: bidDetails.description,
         dueDate: bidDetails.dueDate,

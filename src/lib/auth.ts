@@ -3,6 +3,7 @@ import { users } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { NextRequest } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -119,4 +120,27 @@ export async function getUserById(id: number): Promise<AuthUser | null> {
     role: user.role,
     companyName: user.companyName,
   };
+}
+
+export async function verifyAuth(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
+    
+    const user = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+    
+    if (user.length === 0) {
+      return null;
+    }
+
+    return user[0];
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    return null;
+  }
 } 

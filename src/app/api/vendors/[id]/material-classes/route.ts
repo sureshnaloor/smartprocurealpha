@@ -1,72 +1,76 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { vendorMaterialClasses } from "@/shared/schema";
+import { eq, and } from "drizzle-orm";
+import { verifyAuth } from "@/lib/auth";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    const { data, error } = await supabase
-      .from('vendor_material_classes')
-      .select(`
-        material_class_id,
-        material_classes (
-          id,
-          name,
-          description
-        )
-      `)
-      .eq('vendor_id', params.id);
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (error) throw error;
+    const materialClasses = await db
+      .select()
+      .from(vendorMaterialClasses)
+      .where(eq(vendorMaterialClasses.vendorId, parseInt(params.id)));
 
-    return NextResponse.json(data.map(item => item.material_classes));
+    return NextResponse.json(materialClasses);
   } catch (error) {
-    console.error('Error fetching vendor material classes:', error);
+    console.error("Error fetching vendor material classes:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch vendor material classes' },
+      { error: "Failed to fetch material classes" },
       { status: 500 }
     );
   }
 }
 
-export async function POST(
-  request: Request,
+export async function DELETE(
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const { materialClassIds } = await request.json();
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // First, delete existing material classes
-    const { error: deleteError } = await supabase
-      .from('vendor_material_classes')
-      .delete()
-      .eq('vendor_id', params.id);
+    const { searchParams } = new URL(request.url);
+    const materialClass = searchParams.get("materialClass");
 
-    if (deleteError) throw deleteError;
+    if (!materialClass) {
+      return NextResponse.json(
+        { error: "Material class parameter is required" },
+        { status: 400 }
+      );
+    }
 
-    // Then insert new material classes
-    const { data, error } = await supabase
-      .from('vendor_material_classes')
-      .insert(
-        materialClassIds.map((id: string) => ({
-          vendor_id: params.id,
-          material_class_id: id
-        }))
+    const deletedMaterialClass = await db
+      .delete(vendorMaterialClasses)
+      .where(
+        and(
+          eq(vendorMaterialClasses.vendorId, parseInt(params.id)),
+          eq(vendorMaterialClasses.materialClass, materialClass)
+        )
       )
-      .select();
+      .returning();
 
-    if (error) throw error;
+    if (deletedMaterialClass.length === 0) {
+      return NextResponse.json(
+        { error: "Material class not found" },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ message: "Material class deleted successfully" });
   } catch (error) {
-    console.error('Error updating vendor material classes:', error);
+    console.error("Error deleting material class:", error);
     return NextResponse.json(
-      { error: 'Failed to update vendor material classes' },
+      { error: "Failed to delete material class" },
       { status: 500 }
     );
   }

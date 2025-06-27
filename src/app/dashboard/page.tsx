@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getBids } from "@/lib/db";
+import { getBids } from "@/lib/actions";
 import { Bid } from "@/types";
 
 export default function DashboardPage() {
@@ -14,37 +14,42 @@ export default function DashboardPage() {
   const [activeBids, setActiveBids] = useState<Bid[]>([]);
   const [recentBids, setRecentBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadBids() {
       try {
-        if (user) {
-          const allBids = await getBids(user.id);
-          
-          // Sort bids by due date
-          const sortedBids = [...allBids].sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          
-          // Get active bids (due date is in the future)
-          const active = sortedBids.filter(
-            (bid) => new Date(bid.dueDate) > new Date()
-          );
-          
-          // Get recent bids (last 5)
-          const recent = sortedBids.slice(0, 5);
-          
-          setActiveBids(active);
-          setRecentBids(recent);
-        }
-      } catch (error) {
-        console.error("Failed to load bids:", error);
+        if (!user) return;
+        
+        // Convert user.id to string since getBids expects a string
+        const userBids = await getBids(user.id.toString());
+        
+        // Sort bids by due date
+        const sortedBids = [...userBids].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        
+        // Get active bids (due date is in the future)
+        const active = sortedBids.filter(
+          (bid) => new Date(bid.dueDate) > new Date()
+        );
+        
+        // Get recent bids (last 5)
+        const recent = sortedBids.slice(0, 5);
+        
+        setActiveBids(active);
+        setRecentBids(recent);
+      } catch (err) {
+        setError("Failed to load bids. Please try again.");
+        console.error("Error loading bids:", err);
       } finally {
         setIsLoading(false);
       }
     }
-    
-    loadBids();
+
+    if (user) {
+      loadBids();
+    }
   }, [user]);
 
   if (!user) {

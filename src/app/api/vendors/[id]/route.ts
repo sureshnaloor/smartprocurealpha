@@ -1,126 +1,111 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { vendors } from "@/shared/schema";
+import { eq } from "drizzle-orm";
+import { verifyAuth } from "@/lib/auth";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    const { data: vendor, error } = await supabase
-      .from('vendors')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (error) throw error;
+    const vendor = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, parseInt(params.id)))
+      .limit(1);
 
-    return NextResponse.json(vendor);
+    if (vendor.length === 0) {
+      return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(vendor[0]);
   } catch (error) {
-    console.error('Error fetching vendor:', error);
+    console.error("Error fetching vendor:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch vendor' },
+      { error: "Failed to fetch vendor" },
       { status: 500 }
     );
   }
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user } } = await supabase.auth.getUser();
-
+    const user = await verifyAuth(request);
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { 
+    const {
       company_name,
       contact_name,
       email,
       phone,
-      address,
-      city,
-      state,
-      zip_code,
-      country,
-      business_type,
-      description,
-      website,
-      tax_id
+      tier,
+      location,
+      material_class,
     } = body;
 
-    const { data, error } = await supabase
-      .from('vendors')
-      .update({
-        company_name,
-        contact_name,
+    const updatedVendor = await db
+      .update(vendors)
+      .set({
+        companyName: company_name,
+        contactName: contact_name,
         email,
         phone,
-        address,
-        city,
-        state,
-        zip_code,
-        country,
-        business_type,
-        description,
-        website,
-        tax_id
+        tier,
+        location,
       })
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+      .where(eq(vendors.id, parseInt(params.id)))
+      .returning();
 
-    if (error) throw error;
+    if (updatedVendor.length === 0) {
+      return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+    }
 
-    return NextResponse.json(data);
+    return NextResponse.json(updatedVendor[0]);
   } catch (error) {
-    console.error('Error updating vendor:', error);
+    console.error("Error updating vendor:", error);
     return NextResponse.json(
-      { error: 'Failed to update vendor' },
+      { error: "Failed to update vendor" },
       { status: 500 }
     );
   }
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user } } = await supabase.auth.getUser();
-
+    const user = await verifyAuth(request);
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { error } = await supabase
-      .from('vendors')
-      .delete()
-      .eq('id', params.id)
-      .eq('user_id', user.id);
+    const deletedVendor = await db
+      .delete(vendors)
+      .where(eq(vendors.id, parseInt(params.id)))
+      .returning();
 
-    if (error) throw error;
+    if (deletedVendor.length === 0) {
+      return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+    }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: "Vendor deleted successfully" });
   } catch (error) {
-    console.error('Error deleting vendor:', error);
+    console.error("Error deleting vendor:", error);
     return NextResponse.json(
-      { error: 'Failed to delete vendor' },
+      { error: "Failed to delete vendor" },
       { status: 500 }
     );
   }

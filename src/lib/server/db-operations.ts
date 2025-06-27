@@ -125,13 +125,37 @@ export async function initSampleData() {
   }
 }
 
+// Helper function to get buyer user ID
+async function getBuyerUserId(): Promise<number> {
+  // Try to get existing buyer user
+  let buyerUser = await storage.getUserByUsername("buyer@example.com");
+  
+  if (!buyerUser) {
+    // Create a simple buyer user if it doesn't exist
+    try {
+      buyerUser = await storage.createUser({
+        name: "Demo Buyer",
+        email: "buyer@example.com",
+        password: "password",
+        role: "buyer",
+        companyName: "Acme Corp",
+      });
+    } catch (error) {
+      // If creation fails (e.g., user already exists), try to get it again
+      buyerUser = await storage.getUserByUsername("buyer@example.com");
+      if (!buyerUser) {
+        throw new Error("Could not create or find buyer user");
+      }
+    }
+  }
+  
+  return buyerUser.id;
+}
+
 // Vendor functions
 export async function getVendors(): Promise<Vendor[]> {
-  // For now, assume we're using the first buyer account
-  const user = await storage.getUserByUsername("buyer@example.com");
-  if (!user) return [];
-  
-  const vendors = await storage.getVendors(user.id);
+  const buyerId = await getBuyerUserId();
+  const vendors = await storage.getVendors(buyerId);
   
   // Convert to the expected format
   return vendors.map(v => ({
@@ -144,7 +168,7 @@ export async function getVendors(): Promise<Vendor[]> {
     tier: v.tier,
     location: v.location || undefined,
     materialClasses: v.materialClasses ? v.materialClasses.map(mc => ({
-      id: mc.id.toString(),
+      id: `${mc.vendorId}-${mc.materialClass}`,
       vendorId: mc.vendorId.toString(),
       materialClass: mc.materialClass
     })) : [],
@@ -155,8 +179,11 @@ export async function addVendor(vendorData: Omit<Vendor, "id"> & { materialClass
   // Extract material classes from vendorData if present
   const { materialClasses: materialClassesData, ...restVendorData } = vendorData;
   
+  // Get the buyer ID
+  const buyerId = await getBuyerUserId();
+  
   const newVendor = await storage.createVendor({
-    buyerId: parseInt(restVendorData.buyerId),
+    buyerId: buyerId,
     companyName: restVendorData.companyName,
     email: restVendorData.email,
     contactName: restVendorData.contactName,
@@ -176,7 +203,7 @@ export async function addVendor(vendorData: Omit<Vendor, "id"> & { materialClass
     tier: newVendor.tier,
     location: newVendor.location || undefined,
     materialClasses: newVendor.materialClasses ? newVendor.materialClasses.map(mc => ({
-      id: mc.id.toString(),
+      id: `${mc.vendorId}-${mc.materialClass}`,
       vendorId: mc.vendorId.toString(),
       materialClass: mc.materialClass
     })) : [],
@@ -393,8 +420,9 @@ export async function submitVendorResponse(
       additionalNotes: submission.headerResponse?.additionalNotes,
     },
     submission.items.map(item => ({
+      submissionBidId: parseInt(bidId),
+      submissionVendorId: parseInt(vendorId),
       itemId: parseInt(item.itemId),
-      submissionId: 0, // This will be set by the submitVendorResponse function
       price: item.price,
       leadTime: item.leadTime,
       incoterm: item.incoterm,

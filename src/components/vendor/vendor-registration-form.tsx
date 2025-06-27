@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { registerVendor } from "@/lib/actions";
 
 interface VendorFormData {
   company_name: string;
@@ -34,6 +35,7 @@ export function VendorRegistrationForm({ initialData, onSuccess }: VendorRegistr
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState<VendorFormData>({
     company_name: initialData?.company_name || "",
@@ -57,27 +59,25 @@ export function VendorRegistrationForm({ initialData, onSuccess }: VendorRegistr
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error("User not authenticated");
       }
 
-      if (initialData) {
-        // Update existing vendor profile
-        const { error: updateError } = await supabase
-          .from("vendors")
-          .update(formData)
-          .eq("user_id", user.id);
-
-        if (updateError) throw updateError;
-      } else {
-        // Create new vendor profile
-        const { error: insertError } = await supabase
-          .from("vendors")
-          .insert([{ ...formData, user_id: user.id }]);
-
-        if (insertError) throw insertError;
-      }
+      await registerVendor({
+        companyName: formData.company_name,
+        contactName: formData.contact_name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zip_code,
+        country: formData.country,
+        businessType: formData.business_type,
+        description: formData.description,
+        website: formData.website,
+        taxId: formData.tax_id,
+      });
 
       if (onSuccess) {
         onSuccess();

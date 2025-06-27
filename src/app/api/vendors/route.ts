@@ -1,110 +1,72 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { vendors } from "@/shared/schema";
+import { eq } from "drizzle-orm";
+import { verifyAuth } from "@/lib/auth";
 
-export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies });
-  
+export async function GET(request: NextRequest) {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: vendors, error } = await supabase
-      .from('vendors')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { searchParams } = new URL(request.url);
+    const buyerId = searchParams.get('buyerId');
 
-    if (error) throw error;
+    let query = db.select().from(vendors);
+    
+    if (buyerId) {
+      query = query.where(eq(vendors.buyerId, parseInt(buyerId)));
+    }
 
-    return NextResponse.json(vendors);
+    const allVendors = await query;
+    return NextResponse.json(allVendors);
   } catch (error) {
-    console.error('Error fetching vendors:', error);
+    console.error("Error fetching vendors:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch vendors' },
+      { error: "Failed to fetch vendors" },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies });
-  
+export async function POST(request: NextRequest) {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { 
+    const {
       company_name,
       contact_name,
       email,
       phone,
-      address,
-      city,
-      state,
-      zip_code,
-      country,
-      business_type,
-      description,
-      website,
-      tax_id
+      tier,
+      location,
+      material_class,
     } = body;
 
-    // Validate required fields
-    if (!company_name || !contact_name || !email || !phone || !address || 
-        !city || !state || !zip_code || !country || !business_type || !tax_id) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from('vendors')
-      .insert([{
-        user_id: session.user.id,
-        company_name,
-        contact_name,
+    const newVendor = await db
+      .insert(vendors)
+      .values({
+        buyerId: user.id,
+        companyName: company_name,
+        contactName: contact_name,
         email,
         phone,
-        address,
-        city,
-        state,
-        zip_code,
-        country,
-        business_type,
-        description,
-        website,
-        tax_id
-      }])
-      .select()
-      .single();
+        tier,
+        location,
+      })
+      .returning();
 
-    if (error) {
-      console.error('Error creating vendor:', error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(data);
+    return NextResponse.json(newVendor[0]);
   } catch (error) {
-    console.error('Error creating vendor:', error);
+    console.error("Error creating vendor:", error);
     return NextResponse.json(
-      { error: 'Failed to create vendor' },
+      { error: "Failed to create vendor" },
       { status: 500 }
     );
   }

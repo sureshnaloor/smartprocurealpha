@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/context/auth-context";
 import { VendorRegistrationForm } from "@/components/vendor/vendor-registration-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VendorProfile {
-  id: string;
+  id: number;
   company_name: string;
   contact_name: string;
   email: string;
@@ -22,111 +23,159 @@ interface VendorProfile {
   description: string;
   website: string;
   tax_id: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export default function VendorProfilePage() {
   const [profile, setProfile] = useState<VendorProfile | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.push("/login");
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from("vendors")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
-
-        if (error) throw error;
-        setProfile(data);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!user) {
+      router.push("/login");
+      return;
+    }
 
     fetchProfile();
-  }, [router]);
+  }, [user, router]);
+
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('No authentication token found');
+        return;
+      }
+
+      const response = await fetch('/api/vendors/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProfile(data);
+      } else if (response.status === 404) {
+        // Profile doesn't exist yet
+        setProfile(null);
+      } else {
+        throw new Error('Failed to fetch profile');
+      }
+    } catch (err) {
+      setError('Failed to load profile');
+      console.error('Error fetching profile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileUpdate = () => {
+    setIsEditing(false);
+    fetchProfile();
+  };
 
   if (loading) {
-    return <div className="container mx-auto py-8 text-center">Loading...</div>;
-  }
-
-  if (!profile) {
     return (
       <div className="container mx-auto py-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl font-bold mb-4">No Vendor Profile Found</h1>
-          <p className="mb-6">You need to complete your vendor registration first.</p>
-          <Button onClick={() => router.push("/vendor/register")}>
-            Complete Registration
-          </Button>
-        </div>
+        <div className="text-center">Loading...</div>
       </div>
     );
   }
 
-  if (isEditing) {
-    return (
-      <div className="container mx-auto py-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-center mb-8">Edit Vendor Profile</h1>
-          <VendorRegistrationForm initialData={profile} onSuccess={() => setIsEditing(false)} />
-        </div>
-      </div>
-    );
+  if (!user) {
+    return null;
   }
 
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Vendor Profile</h1>
-          <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+          {profile && !isEditing && (
+            <Button onClick={() => setIsEditing(true)}>
+              Edit Profile
+            </Button>
+          )}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{profile.company_name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h3 className="font-semibold">Contact Information</h3>
-                <p>Contact Name: {profile.contact_name}</p>
-                <p>Email: {profile.email}</p>
-                <p>Phone: {profile.phone}</p>
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {isEditing || !profile ? (
+          <VendorRegistrationForm
+            initialData={profile || undefined}
+            onSuccess={handleProfileUpdate}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Company Name</label>
+                  <p className="text-lg">{profile.company_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Contact Name</label>
+                  <p className="text-lg">{profile.contact_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <p className="text-lg">{profile.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Phone</label>
+                  <p className="text-lg">{profile.phone}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Business Type</label>
+                  <p className="text-lg">{profile.business_type}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Tax ID</label>
+                  <p className="text-lg">{profile.tax_id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Website</label>
+                  <p className="text-lg">{profile.website || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Address</label>
+                  <p className="text-lg">{profile.address}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">City</label>
+                  <p className="text-lg">{profile.city}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">State</label>
+                  <p className="text-lg">{profile.state}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">ZIP Code</label>
+                  <p className="text-lg">{profile.zip_code}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Country</label>
+                  <p className="text-lg">{profile.country}</p>
+                </div>
               </div>
               <div>
-                <h3 className="font-semibold">Business Information</h3>
-                <p>Business Type: {profile.business_type}</p>
-                <p>Tax ID: {profile.tax_id}</p>
-                <p>Website: {profile.website}</p>
+                <label className="text-sm font-medium text-gray-500">Description</label>
+                <p className="text-lg mt-1">{profile.description}</p>
               </div>
-              <div className="col-span-2">
-                <h3 className="font-semibold">Address</h3>
-                <p>{profile.address}</p>
-                <p>{profile.city}, {profile.state} {profile.zip_code}</p>
-                <p>{profile.country}</p>
-              </div>
-              <div className="col-span-2">
-                <h3 className="font-semibold">Description</h3>
-                <p>{profile.description}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

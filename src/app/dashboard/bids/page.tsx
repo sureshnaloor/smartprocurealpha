@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getBids } from "@/lib/db";
+import { getBids } from "@/lib/actions";
 import { Bid } from "@/types";
 
 export default function BidsPage() {
@@ -22,8 +22,8 @@ export default function BidsPage() {
     async function loadBids() {
       try {
         if (user) {
-          const allBids = await getBids(user.id);
-          setBids(allBids);
+          const userBids = await getBids(user.id.toString());
+          setBids(userBids);
         }
       } catch (error) {
         console.error("Failed to load bids:", error);

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getVendors } from "@/lib/db";
+import { getVendors } from "@/lib/actions";
 import { Vendor } from "@/types";
 
 interface VendorSelectionProps {
